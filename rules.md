@@ -40,3 +40,7 @@ also ehr um we now for tables cells should do like
 
 instrucion is a cell, with colspan rowspan attribute and row or coulmn not sure. but this is how we make it flat
 
+
+font size - h1, h2,....
+
+# I DO Like seperation of adapter and instructions
