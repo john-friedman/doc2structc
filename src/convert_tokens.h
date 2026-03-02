@@ -22,6 +22,7 @@ typedef struct {
 typedef struct {
     FeatureEntry entries[MAX_FEATURES];
     int          count;
+    uint32_t     first_char_mask;  /* bit per lowercase letter: bit 0='a', bit 25='z' */
 } FeatureRegistry;
 
 /* ------------------------------------------------------------------ */

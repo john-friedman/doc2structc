@@ -33,11 +33,9 @@ int feature_registry_add(FeatureRegistry *reg,
     }
     /* new feature name — assign next bit */
     if (bit == 0) {
-        /* count distinct bits already assigned */
         uint32_t used = 0;
         for (int i = 0; i < reg->count; i++)
             used |= reg->entries[i].bit;
-        /* find lowest unset bit */
         int pos = 0;
         while (used & (1u << pos)) pos++;
         bit = 1u << pos;
@@ -47,13 +45,17 @@ int feature_registry_add(FeatureRegistry *reg,
     strncpy(e->tag_name,  tag_name,  MAX_TAG_NAME  - 1); e->tag_name[MAX_TAG_NAME-1]   = '\0';
     strncpy(e->feat_name, feat_name, MAX_FEAT_NAME - 1); e->feat_name[MAX_FEAT_NAME-1] = '\0';
     e->bit = bit;
+
+    /* update first char mask */
+    char fc = tag_name[0] | 32;  /* to lowercase */
+    if (fc >= 'a' && fc <= 'z')
+        reg->first_char_mask |= (1u << (fc - 'a'));
+
     return 1;
 }
 
 /* ------------------------------------------------------------------ */
 /* Internal: look up a tag name in the registry                        */
-/* Returns the feature bit, or 0 if not found.                        */
-/* tag_name points into the token buffer — not null terminated.       */
 /* ------------------------------------------------------------------ */
 static uint32_t registry_lookup(const FeatureRegistry *reg,
                                 const char *tag_name, size_t tag_len)
@@ -68,10 +70,7 @@ static uint32_t registry_lookup(const FeatureRegistry *reg,
 }
 
 /* ------------------------------------------------------------------ */
-/* Internal: extract tag name from a token                             */
-/* For open tags:  start points at '<', name starts at start+1        */
-/* For close tags: start points at '<', name starts at start+2        */
-/* Name ends at first '>', '/', or whitespace.                        */
+/* Internal: extract tag name length                                   */
 /* ------------------------------------------------------------------ */
 static size_t tag_name_len(const char *name_start, size_t max)
 {
@@ -119,10 +118,10 @@ ConvertResult convert_tokens_to_instructions(const TokenArray *ta,
                                              const FeatureRegistry *reg)
 {
     ConvertResult result;
-    result.registry = *reg;   /* copy registry into result */
+    result.registry = *reg;
     tna_init(&result.nodes);
 
-    uint32_t active = 0;  /* bitmask of currently active features */
+    uint32_t active = 0;
 
     for (size_t i = 0; i < ta->count; i++) {
         const Token *t = &ta->data[i];
@@ -130,37 +129,38 @@ ConvertResult convert_tokens_to_instructions(const TokenArray *ta,
         switch (t->type) {
 
         case TOK_OPEN_TAG: {
-            /* extract tag name — starts at start+1 */
             if (t->len < 2) break;
             const char *name = t->start + 1;
-            size_t nlen = tag_name_len(name, t->len - 1);
-            uint32_t bit = registry_lookup(reg, name, nlen);
-            if (bit) active |= bit;
+            char fc = *name | 32;
+            if (fc >= 'a' && fc <= 'z' &&
+                (reg->first_char_mask & (1u << (fc - 'a')))) {
+                size_t nlen = tag_name_len(name, t->len - 1);
+                uint32_t bit = registry_lookup(reg, name, nlen);
+                if (bit) active |= bit;
+            }
             break;
         }
 
         case TOK_CLOSE_TAG: {
-            /* extract tag name — starts at start+2 (skip '</') */
             if (t->len < 3) break;
             const char *name = t->start + 2;
-            size_t nlen = tag_name_len(name, t->len - 2);
-            uint32_t bit = registry_lookup(reg, name, nlen);
-            if (bit) active &= ~bit;
+            char fc = *name | 32;
+            if (fc >= 'a' && fc <= 'z' &&
+                (reg->first_char_mask & (1u << (fc - 'a')))) {
+                size_t nlen = tag_name_len(name, t->len - 2);
+                uint32_t bit = registry_lookup(reg, name, nlen);
+                if (bit) active &= ~bit;
+            }
             break;
         }
 
-        case TOK_SYNTHETIC_CLOSE: {
-            /* t->len encodes the TagId — but we don't have tag name here.
-               synthetic closes are for structural tags (p, li, tr, td etc)
-               which are not in the feature registry, so safe to ignore. */
+        case TOK_SYNTHETIC_CLOSE:
             break;
-        }
 
-        case TOK_TEXT: {
+        case TOK_TEXT:
             if (t->start && t->len > 0)
                 tna_push(&result.nodes, t->start, t->len, active);
             break;
-        }
 
         default:
             break;

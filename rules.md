@@ -1,8 +1,8 @@
+just get it out
 
+lets do uhh italic, and underline? 
+then bold....
 
-1. toggle what user keeps track off , e.g. bold tag -> 
-    - tag, dest
-2. 
 
 Instructions List
 - instruction - how a piece of text on same block/line looks visually

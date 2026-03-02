@@ -6,7 +6,35 @@
             "i": "italic",
             "em": "italic",
             "u": "underline",
-            "ins": "underline"
+            "ins": "underline",
+            "table": "table",
+            "img" : "img",
+            "a" : "link"
+        },
+        "css_style": {
+            "font-style": {
+                "keywords": 
+                {
+                    "italic" : "italic"
+                }
+            },
+            "font-weight": {
+                "ranges": [
+                    {
+                        "max": 399,
+                        "command": "light"
+                    },
+                    {
+                        "min": 401,
+                        "command": "bold"
+                    }
+                ],
+                "keywords": {
+                    "lighter": "light",
+                    "bold": "bold",
+                    "bolder": "bold"
+                }
+            }
         }
     }
 }

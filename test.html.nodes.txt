@@ -1,0 +1,32 @@
+# HTML Text Node Output
+# File size  : 225 bytes
+# Text nodes : 12
+# Load time  : 15.472 ms
+# Tok time   : 0.016 ms
+# Conv time  : 0.014 ms
+#
+# Feature map:
+#   bit 0x00000001 = bold
+#   bit 0x00000002 = italic
+#   bit 0x00000004 = underline
+#   bit 0x00000008 = table
+#   bit 0x00000010 = img
+#   bit 0x00000020 = link
+#
+# FORMAT: features(hex) | text (truncated to 120 chars)
+#
+0x00000000 |      
+0x00000000 |      
+0x00000000 |          
+0x00000000 | Test
+0x00000000 |          
+0x00000003 | Bold and italic
+0x00000000 |  normal 1
+0x00000000 |          
+0x00000020 | Test Link in span 
+0x00000000 |  not a test link
+0x00000000 |      
+0x00000000 |  
+#
+# Write time : 0.342 ms
+# TOTAL time : 15.844 ms

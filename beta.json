@@ -8,12 +8,12 @@
             "u": "underline",
             "ins": "underline",
             "img": "image",
-            "a" : "href"
+            "a" : "link"
         },
         "css_style" : {
             # font-style (italic, oblique, normal)
             # bold: ['100', '200', '300', '500', '600', '800', '900', 'lighter', 'bolder']
-            # font size parsing, line-height option
+            # font size parsing, line-height option, h1,...h6
             # text indent, padding, margin 
             # display none
             # text-center'
