@@ -1,17 +1,14 @@
 # HTML Text Node Output
 # File size  : 7899287 bytes
 # Text nodes : 30906
-# Load time  : 2.645 ms
-# Tok time   : 3.896 ms
-# Conv time  : 4.447 ms
+# Load time  : 2.611 ms
+# Tok time   : 4.130 ms
+# Conv time  : 3.676 ms
 #
 # Feature map:
 #   bit 0x00000001 = bold
 #   bit 0x00000002 = italic
 #   bit 0x00000004 = underline
-#   bit 0x00000008 = strikethrough
-#   bit 0x00000010 = superscript
-#   bit 0x00000020 = subscript
 #
 # FORMAT: features(hex) | text (truncated to 120 chars)
 #
@@ -30922,5 +30919,5 @@
 0x00000000 |  
 0x00000000 |  
 #
-# Write time : 14.751 ms
-# TOTAL time : 25.738 ms
+# Write time : 15.456 ms
+# TOTAL time : 25.874 ms

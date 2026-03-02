@@ -3,8 +3,8 @@ We get 500mb - 3gb/s
 
 okay whats next setup our core logic.
 
-gcc -O2 -msse2 -o tokenize src/main.c src/tokenizer.c src/convert_tokens.c
-tokenize.exe tesla10k.html --config standard_html_config.json
+gcc -O2 -msse2 -o tokenize src/main.c src/tokenizer.c src/convert_tokens.c -lcjson
+./tokenize.exe tesla10k.html --config standard_html_config.json
 
 
 ## Tokenization

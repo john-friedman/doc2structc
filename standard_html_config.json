@@ -2,7 +2,11 @@
     "features": {
         "html_tags": {
             "b": "bold",
-            "strong": "bold"
+            "strong": "bold",
+            "i": "italic",
+            "em": "italic",
+            "u": "underline",
+            "ins": "underline"
         }
     }
 }

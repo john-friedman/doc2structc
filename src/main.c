@@ -3,14 +3,14 @@
  * CLI driver: loads an HTML file, tokenizes it, converts to text nodes,
  * writes results.
  *
- * Usage:  tokenize.exe <file.html>
+ * Usage:  tokenize.exe <file.html> [--config <config.json>]
  * Output: <file.html>.nodes.txt
  *
  * Compile (GCC/Clang):
- *   gcc -O2 -msse2 -o tokenize main.c tokenizer.c convert_tokens.c
+ *   gcc -O2 -msse2 -o tokenize main.c tokenizer.c convert_tokens.c -lcjson
  *
  * MSVC:
- *   cl /O2 /arch:SSE2 main.c tokenizer.c convert_tokens.c
+ *   cl /O2 /arch:SSE2 main.c tokenizer.c convert_tokens.c cjson.lib
  */
 
 #include "tokenizer.h"
@@ -20,6 +20,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <cjson/cJSON.h>
 #ifdef _WIN32
 #  include <windows.h>
 #endif
@@ -39,6 +40,75 @@ static double now_sec(void)
     clock_gettime(CLOCK_MONOTONIC, &ts);
     return ts.tv_sec + ts.tv_nsec * 1e-9;
 #endif
+}
+
+/* ------------------------------------------------------------------ */
+/* Config loading                                                       */
+/* ------------------------------------------------------------------ */
+static int load_config(const char *path, FeatureRegistry *reg)
+{
+    FILE *f = fopen(path, "rb");
+    if (!f) { perror("fopen config"); return 0; }
+
+    fseek(f, 0, SEEK_END);
+    long sz = ftell(f);
+    rewind(f);
+
+    char *buf = (char *)malloc((size_t)sz + 1);
+    if (!buf) { fprintf(stderr, "OOM\n"); fclose(f); return 0; }
+    if (fread(buf, 1, (size_t)sz, f) != (size_t)sz) {
+        fprintf(stderr, "Config read error\n"); free(buf); fclose(f); return 0;
+    }
+    buf[sz] = '\0';
+    fclose(f);
+
+    cJSON *root = cJSON_Parse(buf);
+    free(buf);
+    if (!root) {
+        fprintf(stderr, "Config JSON parse error: %s\n", cJSON_GetErrorPtr());
+        return 0;
+    }
+
+    /* navigate: root -> "features" -> "html_tags" */
+    cJSON *features  = cJSON_GetObjectItemCaseSensitive(root, "features");
+    cJSON *html_tags = features
+                     ? cJSON_GetObjectItemCaseSensitive(features, "html_tags")
+                     : NULL;
+
+    if (!html_tags || !cJSON_IsObject(html_tags)) {
+        fprintf(stderr, "Config missing features.html_tags\n");
+        cJSON_Delete(root);
+        return 0;
+    }
+
+    cJSON *entry = NULL;
+    cJSON_ArrayForEach(entry, html_tags) {
+        if (!cJSON_IsString(entry)) continue;
+        if (!feature_registry_add(reg, entry->string, entry->valuestring)) {
+            fprintf(stderr, "Warning: too many features, skipping %s\n",
+                    entry->string);
+        }
+    }
+
+    cJSON_Delete(root);
+    return 1;
+}
+
+/* ------------------------------------------------------------------ */
+/* Default registry (used when no --config is provided)                */
+/* ------------------------------------------------------------------ */
+static void load_default_registry(FeatureRegistry *reg)
+{
+    feature_registry_add(reg, "b",      "bold");
+    feature_registry_add(reg, "strong", "bold");
+    feature_registry_add(reg, "i",      "italic");
+    feature_registry_add(reg, "em",     "italic");
+    feature_registry_add(reg, "u",      "underline");
+    feature_registry_add(reg, "ins",    "underline");
+    feature_registry_add(reg, "strike", "strikethrough");
+    feature_registry_add(reg, "s",      "strikethrough");
+    feature_registry_add(reg, "sup",    "superscript");
+    feature_registry_add(reg, "sub",    "subscript");
 }
 
 /* ------------------------------------------------------------------ */
@@ -117,14 +187,24 @@ static void write_nodes(const ConvertResult *r, const char *outpath,
 int main(int argc, char **argv)
 {
     if (argc < 2) {
-        fprintf(stderr, "Usage: tokenize <file.html>\n");
+        fprintf(stderr, "Usage: tokenize <file.html> [--config <config.json>]\n");
         return 1;
+    }
+
+    const char *html_path   = argv[1];
+    const char *config_path = NULL;
+
+    /* parse optional --config flag */
+    for (int i = 2; i < argc; i++) {
+        if (strcmp(argv[i], "--config") == 0 && i + 1 < argc) {
+            config_path = argv[++i];
+        }
     }
 
     /* 1. Load */
     double t0 = now_sec();
 
-    FILE *f = fopen(argv[1], "rb");
+    FILE *f = fopen(html_path, "rb");
     if (!f) { perror("fopen"); return 1; }
     fseek(f, 0, SEEK_END);
     long fsize = ftell(f);
@@ -145,28 +225,26 @@ int main(int argc, char **argv)
     TokenArray ta = html_tokenize(buf, (size_t)fsize);
     double t_tok = now_sec() - t1;
 
-    /* 3. Convert */
+    /* 3. Build registry */
     FeatureRegistry reg = {0};
-    feature_registry_add(&reg, "b",       "bold");
-    feature_registry_add(&reg, "strong",  "bold");
-    feature_registry_add(&reg, "i",       "italic");
-    feature_registry_add(&reg, "em",      "italic");
-    feature_registry_add(&reg, "u",       "underline");
-    feature_registry_add(&reg, "ins",     "underline");
-    feature_registry_add(&reg, "strike",  "strikethrough");
-    feature_registry_add(&reg, "s",       "strikethrough");
-    feature_registry_add(&reg, "sup",     "superscript");
-    feature_registry_add(&reg, "sub",     "subscript");
+    if (config_path) {
+        if (!load_config(config_path, &reg)) return 1;
+        printf("Config       : %s\n", config_path);
+    } else {
+        load_default_registry(&reg);
+        printf("Config       : (default)\n");
+    }
 
+    /* 4. Convert */
     double t2 = now_sec();
     ConvertResult r = convert_tokens_to_instructions(&ta, &reg);
     double t_conv = now_sec() - t2;
 
-    /* 4. Write */
-    size_t inlen   = strlen(argv[1]);
+    /* 5. Write */
+    size_t inlen   = strlen(html_path);
     char  *outpath = (char *)malloc(inlen + 16);
     if (!outpath) { fprintf(stderr, "OOM\n"); return 1; }
-    memcpy(outpath, argv[1], inlen);
+    memcpy(outpath, html_path, inlen);
     memcpy(outpath + inlen, ".nodes.txt", 11);
     outpath[inlen + 11] = '\0';
 
